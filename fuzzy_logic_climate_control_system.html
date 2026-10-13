@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Fuzzy Logic Smart Occupancy & Climate Control System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 950: '#030712' },
+                        cyan: { 400: '#22d3ee', 500: '#06b6d4' },
+                        indigo: { 500: '#6366f1', 600: '#4f46e5' },
+                        emerald: { 400: '#34d399', 500: '#10b981' },
+                        magenta: { 400: '#f472b6', 500: '#ec4899' }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Libraries: Three.js & Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-glow {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.15);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(6, 182, 212, 0.6); }
+        canvas#three-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
+        .pulse-glow { animation: pulseGlow 2.5s infinite alternate; }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 10px rgba(6, 182, 212, 0.2); }
+            100% { box-shadow: 0 0 25px rgba(6, 182, 212, 0.6); }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen relative overflow-x-hidden custom-scrollbar">
+
+    <canvas id="three-bg"></canvas>
+
+    <!-- App Main Wrapper -->
+    <div id="app" class="relative z-10 min-h-screen flex flex-col">
+
+        <!-- ==================== AUTH / LOGIN MODAL ==================== -->
+        <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md transition-opacity duration-500">
+            <div class="glass-panel-glow rounded-2xl max-w-md w-full p-8 shadow-2xl relative border border-cyan-500/30">
+                <div class="text-center mb-6">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/10 text-cyan-400 mb-3 border border-cyan-500/30">
+                        <i class="fa-solid fa-microchip text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-400 to-magenta-400 bg-clip-text text-transparent">
+                        AuraClimate AI
+                    </h1>
+                    <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Enterprise Fuzzy HVAC Command</p>
+                </div>
+
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">User Identifier</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user-shield absolute left-3 top-3 text-slate-500"></i>
+                            <input type="text" id="auth-username" required value="eng.admin@enterprise.com" 
+                                class="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-400 transition-colors">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Access Role</label>
+                        <select id="auth-role" class="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-400">
+                            <option value="Campus Manager">Campus Facility Director</option>
+                            <option value="Facility Engineer" selected>HVAC Systems Engineer</option>
+                            <option value="Mall Administrator">Commercial Mall Operator</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Security Token</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-key absolute left-3 top-3 text-slate-500"></i>
+                            <input type="password" required value="••••••••••••" 
+                                class="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-400">
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex flex-col gap-2">
+                        <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 via-indigo-600 to-magenta-500 hover:from-cyan-400 hover:to-magenta-400 text-white font-bold rounded-lg shadow-lg shadow-cyan-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                            <span>Launch Control Portal</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+
+                        <button type="button" onclick="loadDemoCredentials()" class="w-full py-2 px-3 bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-300 rounded-lg border border-slate-700 transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-bolt text-amber-400"></i> Auto-Fill Demo Credentials
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-6 text-center text-xs text-slate-500">
+                    Enterprise HVAC v4.8 | Fuzzy Logic Engine & AI Optimization
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TOP NAVIGATION BAR ==================== -->
+        <header class="glass-panel sticky top-0 z-40 border-b border-slate-800/80 px-4 lg:px-8 py-3">
+            <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+                        <i class="fa-solid fa-fan text-lg animate-spin" style="animation-duration: 8s;"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="font-bold text-lg text-white tracking-tight">AuraClimate</h1>
+                            <span class="bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider">Mamdani v2.4</span>
+                        </div>
+                        <p class="text-xs text-slate-400 hidden sm:block">Smart Enterprise Occupancy & HVAC Fuzzy Optimization</p>
+                    </div>
+                </div>
+
+                <!-- Zone Indicator & Live Clock -->
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex items-center gap-3 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-xl text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                            <span class="text-slate-400">Current Zone:</span>
+                            <span id="nav-zone-label" class="font-semibold text-cyan-300">Tech Office Open Workspace</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <div class="text-right hidden sm:block">
+                            <div id="live-time" class="font-mono text-sm font-semibold text-slate-200">12:00:00 PM</div>
+                            <div id="logged-user" class="text-[11px] text-slate-400">Engineer Role</div>
+                        </div>
+                        <button onclick="openReportModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-invoice text-cyan-400"></i>
+                            <span class="hidden sm:inline">Executive Report</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ==================== MAIN DASHBOARD CONTENT ==================== -->
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
+
+            <!-- STATS COUNTER STRIP -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Stat 1: Total People -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 relative overflow-hidden">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 text-cyan-400 text-6xl"><i class="fa-solid fa-users"></i></div>
+                    <div class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Total Occupants</div>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="stat-occupancy" class="text-3xl font-extrabold font-mono text-cyan-400">142</span>
+                        <span class="text-xs text-slate-400">people</span>
+                    </div>
+                    <div class="text-[11px] text-emerald-400 flex items-center gap-1 mt-1">
+                        <i class="fa-solid fa-arrow-trend-up"></i> Density: <span id="stat-density-desc">Moderate</span>
+                    </div>
+                </div>
+
+                <!-- Stat 2: Fan Speed PWM -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 relative overflow-hidden">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 text-indigo-400 text-6xl"><i class="fa-solid fa-gauge-high"></i></div>
+                    <div class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Fuzzy Fan PWM</div>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="stat-fan-pwm" class="text-3xl font-extrabold font-mono text-indigo-400">68%</span>
+                        <span class="text-xs text-slate-400">RPM</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-1">
+                        Mode: <span id="stat-hvac-mode" class="text-amber-300 font-semibold">Balanced Cool</span>
+                    </div>
+                </div>
+
+                <!-- Stat 3: Thermal Load BTU -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 relative overflow-hidden">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 text-magenta-400 text-6xl"><i class="fa-solid fa-fire-flame-curved"></i></div>
+                    <div class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Body Heat Load</div>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="stat-btu" class="text-3xl font-extrabold font-mono text-magenta-400">56.8k</span>
+                        <span class="text-xs text-slate-400">BTU/hr</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-1">
+                        Est. CO₂: <span id="stat-co2" class="text-cyan-300 font-semibold">620 PPM</span>
+                    </div>
+                </div>
+
+                <!-- Stat 4: Power & CO2 Emission -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 relative overflow-hidden">
+                    <div class="absolute -right-2 -bottom-2 opacity-10 text-emerald-400 text-6xl"><i class="fa-solid fa-leaf"></i></div>
+                    <div class="text-xs text-slate-400 uppercase font-semibold tracking-wider">HVAC Power Load</div>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="stat-power" class="text-3xl font-extrabold font-mono text-emerald-400">18.4</span>
+                        <span class="text-xs text-slate-400">kW</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-1">
+                        Cost: <span id="stat-cost" class="text-slate-200 font-semibold">$2.76 / hr</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAIN GRID: LEFT (People Desk & Controllers) | RIGHT (Fuzzy Visualizers & AI) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- LEFT COLUMN: PEOPLE DESK & INPUT CONTROL PANEL (5 Cols) -->
+                <div class="lg:col-span-5 space-y-6">
+
+                    <!-- PEOPLE DESK / CROWD CONTROL PANEL -->
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
+                                    <i class="fa-solid fa-id-card-clip"></i>
+                                </div>
+                                <div>
+                                    <h2 class="font-bold text-slate-100 text-base">People Desk Control</h2>
+                                    <p class="text-[11px] text-slate-400">Real-time Turnstile & Gate Occupancy</p>
+                                </div>
+                            </div>
+                            <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded-full border border-indigo-500/30 font-semibold">Active Gate</span>
+                        </div>
+
+                        <!-- Zone Selection -->
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Target Enterprise Zone</label>
+                            <select id="zone-select" onchange="changeZone()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-400">
+                                <option value="Tech Office Open Workspace" data-cap="250" selected>💻 Tech Office Open Workspace (Cap: 250)</option>
+                                <option value="Executive Boardroom" data-cap="40">🤝 Executive Boardroom (Cap: 40)</option>
+                                <option value="Mall Main Atrium" data-cap="800">🛍️ Mall Main Atrium (Cap: 800)</option>
+                                <option value="Mall Food Court" data-cap="500">🍔 Mall Food Court (Cap: 500)</option>
+                                <option value="Data Center Annex" data-cap="20">🖥️ Data Center Annex (Cap: 20)</option>
+                            </select>
+                        </div>
+
+                        <!-- Main Counter Display & Adjuster -->
+                        <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 mb-4 text-center">
+                            <div class="text-xs text-slate-400 uppercase font-semibold mb-1">Live Zone Occupancy</div>
+                            <div class="flex items-center justify-center gap-3 my-2">
+                                <button onclick="adjustOccupancy(-5)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold border border-slate-700 transition active:scale-90 flex items-center justify-center">
+                                    -5
+                                </button>
+                                <div class="px-6 py-2 bg-slate-950 rounded-xl border border-cyan-500/30 min-w-[130px]">
+                                    <input type="number" id="occupancy-input" value="142" min="0" max="1000" onchange="syncOccupancyFromInput()" 
+                                        class="bg-transparent text-center text-4xl font-extrabold font-mono text-white focus:outline-none w-full">
+                                </div>
+                                <button onclick="adjustOccupancy(5)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold border border-slate-700 transition active:scale-90 flex items-center justify-center">
+                                    +5
+                                </button>
+                            </div>
+
+                            <!-- Fast Adjust Buttons -->
+                            <div class="grid grid-cols-6 gap-1.5 mt-3">
+                                <button onclick="adjustOccupancy(-20)" class="py-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-300 text-xs font-semibold rounded-lg border border-red-800/40">-20</button>
+                                <button onclick="adjustOccupancy(-5)" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700">-5</button>
+                                <button onclick="adjustOccupancy(-1)" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700">-1</button>
+                                <button onclick="adjustOccupancy(1)" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700">+1</button>
+                                <button onclick="adjustOccupancy(5)" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700">+5</button>
+                                <button onclick="adjustOccupancy(20)" class="py-1.5 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 text-xs font-semibold rounded-lg border border-emerald-800/40">+20</button>
+                            </div>
+                        </div>
+
+                        <!-- Occupancy Slider Progress Bar -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>Occupancy Density Level</span>
+                                <span id="capacity-percent-label" class="text-cyan-400 font-mono font-bold">56.8% Capacity</span>
+                            </div>
+                            <input type="range" id="occupancy-slider" min="0" max="250" value="142" oninput="syncOccupancyFromSlider()" 
+                                class="w-full accent-cyan-400 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                        </div>
+
+                        <!-- Fast Preset Scenarios -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Preset Crowd Scenarios</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="applyPreset('morning')" class="p-2 bg-slate-900 hover:bg-slate-800 text-left rounded-xl border border-slate-800 transition">
+                                    <div class="text-xs font-bold text-slate-200"><i class="fa-solid fa-mug-hot text-amber-400 mr-1"></i> Morning Rush</div>
+                                    <div class="text-[10px] text-slate-400">High influx, 200 people</div>
+                                </button>
+                                <button onclick="applyPreset('lunch')" class="p-2 bg-slate-900 hover:bg-slate-800 text-left rounded-xl border border-slate-800 transition">
+                                    <div class="text-xs font-bold text-slate-200"><i class="fa-solid fa-utensils text-magenta-400 mr-1"></i> Food Court Peak</div>
+                                    <div class="text-[10px] text-slate-400">Extreme density, 420 people</div>
+                                </button>
+                                <button onclick="applyPreset('night')" class="p-2 bg-slate-900 hover:bg-slate-800 text-left rounded-xl border border-slate-800 transition">
+                                    <div class="text-xs font-bold text-slate-200"><i class="fa-solid fa-moon text-indigo-400 mr-1"></i> Night Shift</div>
+                                    <div class="text-[10px] text-slate-400">Low density, 25 people</div>
+                                </button>
+                                <button onclick="applyPreset('sale')" class="p-2 bg-slate-900 hover:bg-slate-800 text-left rounded-xl border border-slate-800 transition">
+                                    <div class="text-xs font-bold text-slate-200"><i class="fa-solid fa-tags text-emerald-400 mr-1"></i> Weekend Sale</div>
+                                    <div class="text-[10px] text-slate-400">Max Mall Atrium, 720 people</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ENVIRONMENT & MANUAL CONTROL SLIDERS -->
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                        <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
+                            <h3 class="font-bold text-slate-100 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-indigo-400"></i> Environmental Parameters
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400">Override</span>
+                                <input type="checkbox" id="manual-override-toggle" onchange="toggleManualOverride()" class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Ambient Indoor Temperature Slider -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-300">Ambient Indoor Temp ($T_{in}$)</span>
+                                    <span id="label-ambient-temp" class="text-amber-400 font-mono font-bold">26.5 °C</span>
+                                </div>
+                                <input type="range" id="slider-ambient-temp" min="16" max="38" step="0.5" value="26.5" oninput="updateCalculations()" 
+                                    class="w-full accent-amber-400 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                            </div>
+
+                            <!-- Outdoor Temperature Slider -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-300">Outdoor Ambient Temp ($T_{out}$)</span>
+                                    <span id="label-outdoor-temp" class="text-magenta-400 font-mono font-bold">32.0 °C</span>
+                                </div>
+                                <input type="range" id="slider-outdoor-temp" min="10" max="45" step="0.5" value="32.0" oninput="updateCalculations()" 
+                                    class="w-full accent-magenta-400 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                            </div>
+
+                            <!-- Ambient Relative Humidity -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-300">Relative Humidity ($RH$)</span>
+                                    <span id="label-humidity" class="text-cyan-400 font-mono font-bold">62%</span>
+                                </div>
+                                <input type="range" id="slider-humidity" min="20" max="95" step="1" value="62" oninput="updateCalculations()" 
+                                    class="w-full accent-cyan-400 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI GEMINI CLIMATE ARCHITECT BOT -->
+                    <div class="glass-panel rounded-2xl p-5 border border-cyan-500/30 relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-wand-magic-sparkles text-cyan-400 text-lg"></i>
+                                <h3 class="font-bold text-slate-100 text-sm">Gemini AI Climate Architect</h3>
+                            </div>
+                            <span class="text-[10px] font-mono bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/30">
+                                GEMINI-3-FLASH
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-400 mb-3">
+                            Click below to generate real-time AI setpoint recommendations using multi-variable crowd & ambient thermal models.
+                        </p>
+
+                        <button id="ai-btn" onclick="fetchGeminiOptimization()" class="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-cyan-500/20 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-robot"></i>
+                            <span>Run Gemini Thermal Reasoner</span>
+                        </button>
+
+                        <div id="ai-output" class="mt-3 p-3 bg-slate-900/90 rounded-xl border border-slate-800 text-xs text-slate-300 min-h-[90px] leading-relaxed custom-scrollbar max-h-48 overflow-y-auto">
+                            <span class="text-slate-500 italic">AI System Ready. Click above to analyze current thermal load.</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT COLUMN: FUZZY INFERENCE ENGINE & VISUALIZERS (7 Cols) -->
+                <div class="lg:col-span-7 space-y-6">
+
+                    <!-- FUZZY MEMBERSHIP FUNCTIONS GRAPH (SVG) -->
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-chart-line text-cyan-400"></i>
+                                    Mamdani Fuzzy Membership Functions ($\mu$)
+                                </h3>
+                                <p class="text-xs text-slate-400">Interactive Crisp Inputs mapped to Fuzzy Set Triangular & Trapezoidal Functions</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="switchFuzzyTab('occupancy')" id="tab-btn-occ" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/40">Occupancy MF</button>
+                                <button onclick="switchFuzzyTab('temp')" id="tab-btn-temp" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-800 text-slate-400 border border-slate-700">Temp MF</button>
+                            </div>
+                        </div>
+
+                        <!-- SVG Curve Container -->
+                        <div class="relative bg-slate-950 rounded-xl p-3 border border-slate-800/80 mt-3">
+                            <svg id="fuzzy-mf-svg" viewBox="0 0 500 180" class="w-full h-44 overflow-visible">
+                                <!-- Dynamic SVG lines rendered via JS -->
+                            </svg>
+                            <div class="flex justify-between text-[11px] font-mono text-slate-400 mt-1 px-2">
+                                <span id="mf-axis-min">0 Persons</span>
+                                <span id="mf-axis-mid">125 Persons</span>
+                                <span id="mf-axis-max">250 Persons</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MAMDANI RULE EVALUATION MATRIX -->
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-100 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired text-indigo-400"></i> Active Rule Firing Matrix
+                            </h3>
+                            <span class="text-xs text-slate-400 font-mono">Defuzzification: Center of Gravity (CoG)</span>
+                        </div>
+
+                        <div id="fuzzy-rules-container" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <!-- Fuzzy rules injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- CRISP FUZZY OUTPUT METRICS & ACTUATOR STATES -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="glass-panel p-3.5 rounded-xl border border-slate-800 text-center">
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Fan VFD Speed</div>
+                            <div id="fuzzy-out-fan" class="text-xl font-bold font-mono text-cyan-400 mt-1">68.4%</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">PWM Signal: 174/255</div>
+                        </div>
+                        <div class="glass-panel p-3.5 rounded-xl border border-slate-800 text-center">
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Compressor Duty</div>
+                            <div id="fuzzy-out-comp" class="text-xl font-bold font-mono text-indigo-400 mt-1">72.0%</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">Chiller Valve Open</div>
+                        </div>
+                        <div class="glass-panel p-3.5 rounded-xl border border-slate-800 text-center">
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Fresh Air Damper</div>
+                            <div id="fuzzy-out-fresh" class="text-xl font-bold font-mono text-emerald-400 mt-1">45.0%</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">Air Exchange VFD</div>
+                        </div>
+                    </div>
+
+                    <!-- LIVE CHART.JS TELEMETRY GRAPH -->
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-100 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-chart-area text-magenta-400"></i> System Telemetry (Occupancy vs. Temp vs. Power)
+                            </h3>
+                            <span class="text-xs text-emerald-400 font-mono font-semibold">
+                                <i class="fa-solid fa-circle text-[8px] animate-ping mr-1"></i> Live Stream
+                            </span>
+                        </div>
+                        <div class="h-52 w-full">
+                            <canvas id="telemetryChart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="glass-panel border-t border-slate-800/80 mt-8 py-4 px-6 text-center text-xs text-slate-500">
+            Smart Enterprise Occupancy & Climate Control System | Production-Ready Fuzzy Logic Engine (Mamdani CoG)
+        </footer>
+
+        <!-- ==================== EXECUTIVE REPORT MODAL ==================== -->
+        <div id="report-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+            <div class="glass-panel-glow rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/40">
+                            <i class="fa-solid fa-file-contract"></i>
+                        </div>
+                        <h2 class="text-lg font-bold text-white">Executive Thermal Audit & Fuzzy Logic Report</h2>
+                    </div>
+                    <button onclick="closeReportModal()" class="text-slate-400 hover:text-white text-lg px-2">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="mt-4 space-y-4 text-xs text-slate-300">
+                    <div class="grid grid-cols-2 gap-3 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <div>
+                            <span class="text-slate-400">Facility Zone:</span>
+                            <span id="rpt-zone" class="font-bold text-white block mt-0.5">Tech Office Open Workspace</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Timestamp:</span>
+                            <span id="rpt-time" class="font-mono text-cyan-400 block mt-0.5">--</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Occupancy Count:</span>
+                            <span id="rpt-occupants" class="font-bold text-slate-100 block mt-0.5">142 Persons</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Comfort Score Index:</span>
+                            <span id="rpt-comfort" class="font-bold text-emerald-400 block mt-0.5">94.2%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                        <h4 class="font-bold text-slate-200 text-xs uppercase tracking-wider text-cyan-400">Thermal Balance Breakdown</h4>
+                        <p class="leading-relaxed text-slate-400">
+                            Total sensible + latent heat generation from occupants: <span id="rpt-btu-calc" class="font-mono text-amber-300 font-semibold">56,800 BTU/hr</span>. Outdoor temperature gradient requires active air exchange with fresh damper position set at <span id="rpt-damper-calc" class="font-mono text-emerald-400 font-semibold">45%</span>.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                        <h4 class="font-bold text-slate-200 text-xs uppercase tracking-wider text-indigo-400 mb-2">Fuzzy Rule Activation Breakdown</h4>
+                        <div id="rpt-fuzzy-summary" class="space-y-1 font-mono text-[11px] text-slate-300">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button onclick="exportReportCSV()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-download"></i> Export Data CSV
+                        </button>
+                        <button onclick="closeReportModal()" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 text-white text-xs font-bold rounded-lg shadow-lg transition">
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JS APP LOGIC -->
+    <script>
+        /* ==================== GLOBAL SYSTEM STATE ==================== */
+        const state = {
+            occupancy: 142,
+            zoneCapacity: 250,
+            zoneName: 'Tech Office Open Workspace',
+            ambientTemp: 26.5,
+            outdoorTemp: 32.0,
+            humidity: 62,
+            manualOverride: false,
+            activeTab: 'occupancy', // 'occupancy' or 'temp'
+            
+            // Fuzzy Outputs
+            fanSpeedPWM: 68.4,
+            compressorDuty: 72.0,
+            damperOpening: 45.0,
+            hvacMode: 'Balanced Cool',
+            
+            // Telemetry History
+            history: {
+                labels: [],
+                occ: [],
+                temp: [],
+                power: []
+            }
+        };
+
+        let telemetryChart = null;
+
+        /* ==================== THREE.JS BACKGROUND ==================== */
+        function initThreeJS() {
+            const canvas = document.getElementById('three-bg');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Floating Particle Network
+            const particleCount = 120;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 60;
+                positions[i + 1] = (Math.random() - 0.5) * 60;
+                positions[i + 2] = (Math.random() - 0.5) * 40;
+
+                colors[i] = 0.02; // R
+                colors[i + 1] = 0.7; // G
+                colors[i + 2] = 0.85; // B
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.8,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            // Wireframe Mesh Plane
+            const planeGeo = new THREE.PlaneGeometry(80, 80, 20, 20);
+            const planeMat = new THREE.MeshBasicMaterial({
+                color: 0x1e1b4b,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.15
+            });
+            const mesh = new THREE.Mesh(planeGeo, planeMat);
+            mesh.rotation.x = -Math.PI / 3;
+            mesh.position.y = -15;
+            scene.add(mesh);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                particles.rotation.y += 0.0008;
+                particles.rotation.x += 0.0004;
+                mesh.rotation.z += 0.0003;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        /* ==================== MAMDANI FUZZY LOGIC ENGINE ==================== */
+        // Membership Functions (Triangular & Trapezoidal)
+        function trimf(x, a, b, c) {
+            return Math.max(0, Math.min((x - a) / (b - a || 1e-5), (c - x) / (c - b || 1e-5)));
+        }
+
+        function trapmf(x, a, b, c, d) {
+            return Math.max(0, Math.min((x - a) / (b - a || 1e-5), 1, (d - x) / (d - c || 1e-5)));
+        }
+
+        function calculateFuzzyInference() {
+            const occRatio = Math.min(100, (state.occupancy / state.zoneCapacity) * 100);
+            const temp = state.ambientTemp;
+
+            // 1. Fuzzify Inputs
+            // Occupancy Fuzzy Sets (%)
+            const occLow = trapmf(occRatio, 0, 0, 20, 45);
+            const occMed = trimf(occRatio, 30, 50, 75);
+            const occHigh = trapmf(occRatio, 60, 80, 100, 100);
+
+            // Temperature Fuzzy Sets (°C)
+            const tempCold = trapmf(temp, 16, 16, 20, 22.5);
+            const tempOpt = trimf(temp, 21.5, 24.0, 26.5);
+            const tempHot = trapmf(temp, 25.5, 28.5, 40, 40);
+
+            // 2. Mamdani Fuzzy Rules & Firing Strengths (\mu)
+            const rules = [
+                { id: 1, name: 'IF Occupancy is Low AND Temp is Cold THEN Fan PWM Low, Chiller Eco', weight: Math.min(occLow, tempCold), fan: 25, comp: 20, mode: 'Eco Purge' },
+                { id: 2, name: 'IF Occupancy is Low AND Temp is Optimal THEN Fan PWM Med-Low, Chiller Eco', weight: Math.min(occLow, tempOpt), fan: 40, comp: 35, mode: 'Eco Cool' },
+                { id: 3, name: 'IF Occupancy is Low AND Temp is Hot THEN Fan PWM Med, Chiller Balanced', weight: Math.min(occLow, tempHot), fan: 60, comp: 65, mode: 'Balanced Cool' },
+                { id: 4, name: 'IF Occupancy is Medium AND Temp is Cold THEN Fan PWM Med, Chiller Eco', weight: Math.min(occMed, tempCold), fan: 45, comp: 30, mode: 'Eco Purge' },
+                { id: 5, name: 'IF Occupancy is Medium AND Temp is Optimal THEN Fan PWM Med-High, Chiller Balanced', weight: Math.min(occMed, tempOpt), fan: 65, comp: 60, mode: 'Balanced Cool' },
+                { id: 6, name: 'IF Occupancy is Medium AND Temp is Hot THEN Fan PWM High, Chiller Turbo', weight: Math.min(occMed, tempHot), fan: 85, comp: 85, mode: 'Turbo Cool' },
+                { id: 7, name: 'IF Occupancy is High AND Temp is Cold THEN Fan PWM High, Fresh Air Max', weight: Math.min(occHigh, tempCold), fan: 75, comp: 50, mode: 'Smart Purge' },
+                { id: 8, name: 'IF Occupancy is High AND Temp is Optimal THEN Fan PWM High, Chiller High', weight: Math.min(occHigh, tempOpt), fan: 88, comp: 80, mode: 'Turbo Cool' },
+                { id: 9, name: 'IF Occupancy is High AND Temp is Hot THEN Fan PWM Max (100%), Chiller Max (100%)', weight: Math.min(occHigh, tempHot), fan: 100, comp: 100, mode: 'Max Turbo Cool' }
+            ];
+
+            // 3. Defuzzification via Center of Gravity (CoG)
+            let totalWeight = 0;
+            let weightedFan = 0;
+            let weightedComp = 0;
+
+            let maxWeight = -1;
+            let dominantMode = 'Balanced Cool';
+
+            rules.forEach(r => {
+                totalWeight += r.weight;
+                weightedFan += r.weight * r.fan;
+                weightedComp += r.weight * r.comp;
+
+                if (r.weight > maxWeight) {
+                    maxWeight = r.weight;
+                    dominantMode = r.mode;
+                }
+            });
+
+            if (totalWeight > 0 && !state.manualOverride) {
+                state.fanSpeedPWM = Math.round((weightedFan / totalWeight) * 10) / 10;
+                state.compressorDuty = Math.round((weightedComp / totalWeight) * 10) / 10;
+                state.hvacMode = dominantMode;
+            }
+
+            // Fresh Air Damper logic based on Occupancy & Humidity
+            state.damperOpening = Math.min(100, Math.max(15, Math.round((occRatio * 0.6) + (state.humidity * 0.25))));
+
+            renderFuzzyRulesUI(rules);
+            renderFuzzySVG();
+        }
+
+        /* ==================== SVG FUZZY MEMBERSHIP GRAPH ==================== */
+        function renderFuzzySVG() {
+            const svg = document.getElementById('fuzzy-mf-svg');
+            if (!svg) return;
+
+            let content = '';
+
+            // Gridlines
+            content += `<line x1="0" y1="150" x2="500" y2="150" stroke="#334155" stroke-width="1.5" />`;
+            content += `<line x1="0" y1="20" x2="500" y2="20" stroke="#334155" stroke-dasharray="4" stroke-width="1" />`;
+            content += `<text x="5" y="15" fill="#64748b" font-size="10" font-family="monospace">μ = 1.0</text>`;
+
+            if (state.activeTab === 'occupancy') {
+                const ratio = Math.min(100, (state.occupancy / state.zoneCapacity) * 100);
+                const liveX = (ratio / 100) * 500;
+
+                // Curves: Low (Cyan), Medium (Indigo), High (Magenta)
+                content += `<path d="M 0,20 L 100,20 L 225,150 L 0,150 Z" fill="rgba(6, 182, 212, 0.15)" stroke="#06b6d4" stroke-width="2"/>`;
+                content += `<path d="M 150,150 L 250,20 L 375,150 Z" fill="rgba(99, 102, 241, 0.15)" stroke="#6366f1" stroke-width="2"/>`;
+                content += `<path d="M 300,150 L 400,20 L 500,20 L 500,150 Z" fill="rgba(236, 72, 153, 0.15)" stroke="#ec4899" stroke-width="2"/>`;
+
+                // Labels
+                content += `<text x="50" y="70" fill="#06b6d4" font-size="11" font-weight="bold">LOW</text>`;
+                content += `<text x="235" y="70" fill="#818cf8" font-size="11" font-weight="bold">MED</text>`;
+                content += `<text x="420" y="70" fill="#ec4899" font-size="11" font-weight="bold">HIGH</text>`;
+
+                // Live Indicator Line
+                content += `<line x1="${liveX}" y1="10" x2="${liveX}" y2="150" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="3,3"/>`;
+                content += `<circle cx="${liveX}" cy="150" r="5" fill="#38bdf8" />`;
+                content += `<text x="${Math.min(410, Math.max(10, liveX - 35))}" y="170" fill="#38bdf8" font-size="11" font-weight="bold" font-family="monospace">${Math.round(ratio)}% Cap (${state.occupancy} p)</text>`;
+
+                document.getElementById('mf-axis-min').innerText = '0 Persons';
+                document.getElementById('mf-axis-mid').innerText = `${Math.round(state.zoneCapacity / 2)} Persons`;
+                document.getElementById('mf-axis-max').innerText = `${state.zoneCapacity} Max Cap`;
+            } else {
+                // Temp Curves: Cold (Cyan), Opt (Emerald), Hot (Magenta) [16°C to 38°C]
+                const t = state.ambientTemp;
+                const liveX = ((t - 16) / (38 - 16)) * 500;
+
+                content += `<path d="M 0,20 L 90,20 L 147,150 L 0,150 Z" fill="rgba(6, 182, 212, 0.15)" stroke="#06b6d4" stroke-width="2"/>`;
+                content += `<path d="M 125,150 L 181,20 L 238,150 Z" fill="rgba(52, 211, 153, 0.15)" stroke="#34d399" stroke-width="2"/>`;
+                content += `<path d="M 215,150 L 284,20 L 500,20 L 500,150 Z" fill="rgba(236, 72, 153, 0.15)" stroke="#ec4899" stroke-width="2"/>`;
+
+                content += `<text x="35" y="70" fill="#06b6d4" font-size="11" font-weight="bold">COLD</text>`;
+                content += `<text x="170" y="70" fill="#34d399" font-size="11" font-weight="bold">OPTIMAL</text>`;
+                content += `<text x="330" y="70" fill="#ec4899" font-size="11" font-weight="bold">HOT</text>`;
+
+                content += `<line x1="${liveX}" y1="10" x2="${liveX}" y2="150" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="3,3"/>`;
+                content += `<circle cx="${liveX}" cy="150" r="5" fill="#f59e0b" />`;
+                content += `<text x="${Math.min(420, Math.max(10, liveX - 25))}" y="170" fill="#f59e0b" font-size="11" font-weight="bold" font-family="monospace">${t} °C</text>`;
+
+                document.getElementById('mf-axis-min').innerText = '16.0 °C';
+                document.getElementById('mf-axis-mid').innerText = '27.0 °C';
+                document.getElementById('mf-axis-max').innerText = '38.0 °C';
+            }
+
+            svg.innerHTML = content;
+        }
+
+        function switchFuzzyTab(tab) {
+            state.activeTab = tab;
+            const btnOcc = document.getElementById('tab-btn-occ');
+            const btnTemp = document.getElementById('tab-btn-temp');
+
+            if (tab === 'occupancy') {
+                btnOcc.className = "px-2.5 py-1 text-xs font-bold rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/40";
+                btnTemp.className = "px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-800 text-slate-400 border border-slate-700";
+            } else {
+                btnTemp.className = "px-2.5 py-1 text-xs font-bold rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/40";
+                btnOcc.className = "px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-800 text-slate-400 border border-slate-700";
+            }
+            renderFuzzySVG();
+        }
+
+        function renderFuzzyRulesUI(rules) {
+            const container = document.getElementById('fuzzy-rules-container');
+            if (!container) return;
+
+            container.innerHTML = rules.map(r => {
+                const isFiring = r.weight > 0;
+                const barWidth = Math.round(r.weight * 100);
+                return `
+                    <div class="p-2.5 rounded-xl border ${isFiring ? 'bg-slate-900/90 border-cyan-500/40' : 'bg-slate-950/40 border-slate-800/60 opacity-50'} transition">
+                        <div class="flex justify-between font-mono text-[11px] mb-1">
+                            <span class="${isFiring ? 'text-cyan-300 font-bold' : 'text-slate-400'}">Rule #${r.id}</span>
+                            <span class="font-bold ${isFiring ? 'text-amber-400' : 'text-slate-500'}">μ = ${r.weight.toFixed(2)}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-300 truncate">${r.name}</p>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                            <div class="bg-cyan-400 h-full transition-all duration-300" style="width: ${barWidth}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /* ==================== CALCULATION & TELEMETRY UPDATES ==================== */
+        function updateCalculations() {
+            // Read Inputs
+            state.ambientTemp = parseFloat(document.getElementById('slider-ambient-temp').value);
+            state.outdoorTemp = parseFloat(document.getElementById('slider-outdoor-temp').value);
+            state.humidity = parseInt(document.getElementById('slider-humidity').value);
+
+            document.getElementById('label-ambient-temp').innerText = `${state.ambientTemp.toFixed(1)} °C`;
+            document.getElementById('label-outdoor-temp').innerText = `${state.outdoorTemp.toFixed(1)} °C`;
+            document.getElementById('label-humidity').innerText = `${state.humidity}%`;
+
+            // Run Mamdani Engine
+            calculateFuzzyInference();
+
+            // Thermal Math & Eco Calculations
+            // Body Heat: ~400 BTU/hr per person
+            const btuTotal = state.occupancy * 400;
+            const co2Estimate = Math.round(400 + (state.occupancy * 1.55)); // PPM
+            
+            // Power kW Math: Fan power + Compressor power
+            const powerKW = Math.round(((state.fanSpeedPWM * 0.12) + (state.compressorDuty * 0.22)) * 10) / 10;
+            const costHourly = (powerKW * 0.15).toFixed(2); // $0.15 per kWh
+
+            // Density Descriptor
+            const capRatio = state.occupancy / state.zoneCapacity;
+            let densityDesc = 'Optimal';
+            if (capRatio > 0.8) densityDesc = 'High Density';
+            else if (capRatio < 0.25) densityDesc = 'Low Sparse';
+
+            // UI Label Updates
+            document.getElementById('stat-occupancy').innerText = state.occupancy;
+            document.getElementById('stat-density-desc').innerText = densityDesc;
+            document.getElementById('stat-fan-pwm').innerText = `${Math.round(state.fanSpeedPWM)}%`;
+            document.getElementById('stat-hvac-mode').innerText = state.hvacMode;
+            document.getElementById('stat-btu').innerText = `${(btuTotal / 1000).toFixed(1)}k`;
+            document.getElementById('stat-co2').innerText = `${co2Estimate} PPM`;
+            document.getElementById('stat-power').innerText = powerKW;
+            document.getElementById('stat-cost').innerText = `$${costHourly} / hr`;
+
+            document.getElementById('fuzzy-out-fan').innerText = `${state.fanSpeedPWM}%`;
+            document.getElementById('fuzzy-out-comp').innerText = `${state.compressorDuty}%`;
+            document.getElementById('fuzzy-out-fresh').innerText = `${state.damperOpening}%`;
+
+            // Capacity Progress Bar Label
+            const capPercent = Math.round(capRatio * 100);
+            document.getElementById('capacity-percent-label').innerText = `${capPercent}% Capacity`;
+        }
+
+        /* ==================== PEOPLE DESK CONTROLLERS ==================== */
+        function adjustOccupancy(delta) {
+            state.occupancy = Math.max(0, Math.min(1000, state.occupancy + delta));
+            document.getElementById('occupancy-input').value = state.occupancy;
+            document.getElementById('occupancy-slider').value = Math.min(state.zoneCapacity, state.occupancy);
+            updateCalculations();
+        }
+
+        function syncOccupancyFromInput() {
+            const val = parseInt(document.getElementById('occupancy-input').value) || 0;
+            state.occupancy = Math.max(0, Math.min(1000, val));
+            document.getElementById('occupancy-slider').value = Math.min(state.zoneCapacity, state.occupancy);
+            updateCalculations();
+        }
+
+        function syncOccupancyFromSlider() {
+            const val = parseInt(document.getElementById('occupancy-slider').value) || 0;
+            state.occupancy = val;
+            document.getElementById('occupancy-input').value = val;
+            updateCalculations();
+        }
+
+        function changeZone() {
+            const select = document.getElementById('zone-select');
+            const selectedOpt = select.options[select.selectedIndex];
+            state.zoneName = select.value;
+            state.zoneCapacity = parseInt(selectedOpt.getAttribute('data-cap')) || 250;
+
+            document.getElementById('nav-zone-label').innerText = state.zoneName;
+            document.getElementById('occupancy-slider').max = state.zoneCapacity;
+            
+            if (state.occupancy > state.zoneCapacity) {
+                state.occupancy = state.zoneCapacity;
+                document.getElementById('occupancy-input').value = state.occupancy;
+            }
+            document.getElementById('occupancy-slider').value = state.occupancy;
+            updateCalculations();
+        }
+
+        function applyPreset(type) {
+            if (type === 'morning') {
+                document.getElementById('zone-select').value = "Tech Office Open Workspace";
+                changeZone();
+                state.occupancy = 200;
+                document.getElementById('slider-ambient-temp').value = 27.0;
+            } else if (type === 'lunch') {
+                document.getElementById('zone-select').value = "Mall Food Court";
+                changeZone();
+                state.occupancy = 420;
+                document.getElementById('slider-ambient-temp').value = 29.5;
+            } else if (type === 'night') {
+                document.getElementById('zone-select').value = "Tech Office Open Workspace";
+                changeZone();
+                state.occupancy = 25;
+                document.getElementById('slider-ambient-temp').value = 22.0;
+            } else if (type === 'sale') {
+                document.getElementById('zone-select').value = "Mall Main Atrium";
+                changeZone();
+                state.occupancy = 720;
+                document.getElementById('slider-ambient-temp').value = 31.0;
+            }
+            document.getElementById('occupancy-input').value = state.occupancy;
+            document.getElementById('occupancy-slider').value = Math.min(state.zoneCapacity, state.occupancy);
+            updateCalculations();
+        }
+
+        function toggleManualOverride() {
+            state.manualOverride = document.getElementById('manual-override-toggle').checked;
+            updateCalculations();
+        }
+
+        /* ==================== GEMINI AI INTEGRATION ==================== */
+        async function fetchGeminiOptimization() {
+            const outDiv = document.getElementById('ai-output');
+            const btn = document.getElementById('ai-btn');
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Analyzing Thermal Dynamics...`;
+            outDiv.innerHTML = `<div class="text-cyan-400 font-mono animate-pulse">Connecting to Gemini 3 Flash Thermal Reasoning Engine...</div>`;
+
+            const promptText = `Act as an expert HVAC Thermal AI Architect. Analyze this enterprise facility state:
+Zone: "${state.zoneName}" (Capacity: ${state.zoneCapacity})
+Current Occupants: ${state.occupancy} people
+Indoor Temp: ${state.ambientTemp}°C, Outdoor Temp: ${state.outdoorTemp}°C, Humidity: ${state.humidity}%
+Calculated Body Heat Load: ${(state.occupancy * 400)} BTU/hr
+Fuzzy Engine Output: Fan Speed ${state.fanSpeedPWM}%, Compressor ${state.compressorDuty}%, Mode "${state.hvacMode}"
+
+Provide a concise 3-bullet point executive recommendation covering:
+1. Recommended Target Temperature Setpoint (°C).
+2. Energy saving optimization tip.
+3. Air quality / CO2 mitigation strategy.`;
+
+            try {
+                // Call Gemini API Endpoint
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }]
+                    })
+                });
+
+                const data = await response.json();
+                const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiText) {
+                    outDiv.innerHTML = `<div class="prose prose-invert text-xs">${aiText.replace(/\n/g, '<br>')}</div>`;
+                } else {
+                    throw new Error('No AI response payload');
+                }
+            } catch (err) {
+                // Fallback local smart reasoning engine if offline or throttled
+                const targetSet = state.occupancy > 150 ? 21.5 : 23.5;
+                outDiv.innerHTML = `
+                    <div class="space-y-1.5 font-sans">
+                        <div class="text-cyan-400 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-circle-check"></i> AI Thermal Audit Complete (Local Backup Engine)
+                        </div>
+                        <div>• <strong>Optimal Setpoint:</strong> Adjust VAV terminal units to <strong>${targetSet}°C</strong> to offset human sensible heat rise.</div>
+                        <div>• <strong>Efficiency Mode:</strong> Pre-cool zone by 1.5°C before peak crowd arrival to reduce grid load peak charges.</div>
+                        <div>• <strong>Air Quality:</strong> Increase VFD Damper opening to ${state.damperOpening + 10}% to keep CO₂ levels under 700 PPM.</div>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-robot"></i> <span>Run Gemini Thermal Reasoner</span>`;
+            }
+        }
+
+        /* ==================== CHART.JS TELEMETRY ==================== */
+        function initChart() {
+            const ctx = document.getElementById('telemetryChart').getContext('2d');
+            telemetryChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: state.history.labels,
+                    datasets: [
+                        {
+                            label: 'Occupancy (p)',
+                            data: state.history.occ,
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Indoor Temp (°C)',
+                            data: state.history.temp,
+                            borderColor: '#f59e0b',
+                            borderWidth: 2,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Power (kW)',
+                            data: state.history.power,
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: {
+                            ticks: { color: '#64748b', font: { size: 10 } },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            ticks: { color: '#06b6d4', font: { size: 10 } },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            ticks: { color: '#f59e0b', font: { size: 10 } },
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // Populate initial history ticks
+            const now = new Date();
+            for (let i = 10; i >= 0; i--) {
+                const t = new Date(now.getTime() - i * 5000);
+                const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                state.history.labels.push(timeStr);
+                state.history.occ.push(state.occupancy);
+                state.history.temp.push(state.ambientTemp);
+                state.history.power.push((state.fanSpeedPWM * 0.12) + (state.compressorDuty * 0.22));
+            }
+            telemetryChart.update();
+
+            // Interval live update
+            setInterval(() => {
+                const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                state.history.labels.shift();
+                state.history.occ.shift();
+                state.history.temp.shift();
+                state.history.power.shift();
+
+                const currentKw = Math.round(((state.fanSpeedPWM * 0.12) + (state.compressorDuty * 0.22)) * 10) / 10;
+
+                state.history.labels.push(timeStr);
+                state.history.occ.push(state.occupancy);
+                state.history.temp.push(state.ambientTemp);
+                state.history.power.push(currentKw);
+
+                telemetryChart.update();
+            }, 3000);
+        }
+
+        /* ==================== AUTH & REPORT MODAL HANDLERS ==================== */
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value;
+            const role = document.getElementById('auth-role').value;
+
+            document.getElementById('logged-user').innerText = `${username.split('@')[0]} (${role})`;
+            
+            const modal = document.getElementById('auth-modal');
+            modal.style.opacity = '0';
+            setTimeout(() => modal.classList.add('hidden'), 500);
+        }
+
+        function loadDemoCredentials() {
+            document.getElementById('auth-username').value = 'facility.director@corporate.com';
+            document.getElementById('auth-role').value = 'Campus Manager';
+        }
+
+        function openReportModal() {
+            document.getElementById('rpt-zone').innerText = state.zoneName;
+            document.getElementById('rpt-time').innerText = new Date().toLocaleString();
+            document.getElementById('rpt-occupants').innerText = `${state.occupancy} Persons (${Math.round((state.occupancy / state.zoneCapacity) * 100)}% Load)`;
+            document.getElementById('rpt-btu-calc').innerText = `${(state.occupancy * 400).toLocaleString()} BTU/hr`;
+            document.getElementById('rpt-damper-calc').innerText = `${state.damperOpening}%`;
+
+            const summaryDiv = document.getElementById('rpt-fuzzy-summary');
+            summaryDiv.innerHTML = `
+                <div>• Active HVAC Mode: <span class="text-amber-400">${state.hvacMode}</span></div>
+                <div>• Fan Speed VFD Command: <span class="text-cyan-400">${state.fanSpeedPWM}% PWM</span></div>
+                <div>• Compressor Load Duty: <span class="text-indigo-400">${state.compressorDuty}%</span></div>
+                <div>• Defuzzification Strategy: Center of Gravity (CoG)</div>
+            `;
+
+            document.getElementById('report-modal').classList.remove('hidden');
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.add('hidden');
+        }
+
+        function exportReportCSV() {
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + "Timestamp,Zone,Occupants,AmbientTemp,OutdoorTemp,Humidity,FanPWM,CompressorDuty,PowerKW\n"
+                + `${new Date().toISOString()},"${state.zoneName}",${state.occupancy},${state.ambientTemp},${state.outdoorTemp},${state.humidity},${state.fanSpeedPWM},${state.compressorDuty},${((state.fanSpeedPWM*0.12)+(state.compressorDuty*0.22)).toFixed(1)}`;
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `HVAC_Fuzzy_Report_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Live Clock
+        setInterval(() => {
+            document.getElementById('live-time').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        /* ==================== ONLOAD INITIALIZATION ==================== */
+        window.onload = function() {
+            initThreeJS();
+            updateCalculations();
+            initChart();
+        };
+    </script>
+</body>
+</html>
